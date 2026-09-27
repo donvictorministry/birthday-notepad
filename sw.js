@@ -12,7 +12,7 @@
  * If you add a NEW .js file (per your <script src="..."> map), add its
  * filename to CACHE_ASSETS below too, or it won't be available offline.
  */
-const CACHE_NAME = 'birthday-notepad-v1.6';
+const CACHE_NAME = 'birthday-notepad-v1.7';
 
 const CACHE_ASSETS = [
   './',
