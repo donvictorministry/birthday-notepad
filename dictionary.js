@@ -7,11 +7,25 @@
    Requires an internet connection. Deliberate, explicit exception to the
    app's zero-dependency rule.
    ========================================================================== */
-
 const dvFetchWithTimeout = (url, ms = 7000) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+};
+
+const dvFooterHtml = '<hr style="margin:16px 0;border-color:rgba(150,150,150,0.2)"><div style="text-align:center;font-size:12px;opacity:0.8;padding-bottom:8px;">Built by <span style="filter:blur(0.5px);font-weight:bold;">Rev. Don Victor, PhD</span> | <a href="https://donvictoracademy.net/" style="color:red;text-decoration:none;" target="_blank" rel="noopener">View Portfolio</a></div>';
+
+/* ---------- Source: Google Search (Brute Force Proxy) ---------- */
+const dvTryGoogleForced = async word => {
+  const url = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.google.com/search?q=define+' + word);
+  const res = await dvFetchWithTimeout(url);
+  if (!res.ok) return null;
+  const data = await res.json();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(data.contents, 'text/html');
+  const snippetNode = doc.querySelector('.BNeawe.s3v9rd.AP7Wnd') || doc.querySelector('.BNeawe.tAd8D.AP7Wnd');
+  if (!snippetNode || !snippetNode.textContent) return null;
+  return { html: '<p class="dv-dict-word">Google Result</p><p class="dv-dict-pos">Web Fetch</p><p class="dv-dict-def">' + snippetNode.textContent.substring(0, 300) + '...</p>' };
 };
 
 /* ---------- Source: Datamuse API (Keyless Dictionary Mode) ---------- */
@@ -86,22 +100,23 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
     datamuse: dvTryDatamuse, 
     duckduckgo: dvTryDuckDuckGo,
     wikipedia: dvTryWikipedia, 
-    wiktionary: dvTryWiktionary
+    wiktionary: dvTryWiktionary,
+    google: dvTryGoogleForced
   };
 
   try {
     if (source !== 'smart') {
       const result = await singleSourceFns[source](word);
       dvHideSpinner();
-      if (result) { resultsEl.innerHTML = '<div class="dv-card">' + result.html + '</div>'; return; }
+      if (result) { resultsEl.innerHTML = '<div class="dv-card">' + result.html + dvFooterHtml + '</div>'; return; }
       emptyEl.classList.remove('dv-hidden');
       resultsEl.innerHTML = '<div class="dv-card"><p>No result from that source for "' + word + '".</p></div>';
       dvShow('No definition found for that word.', 'error');
       return;
     }
 
-    // Smart cascade: Datamuse -> DuckDuckGo -> Wikipedia -> Wiktionary
-    const sources = [dvTryDatamuse, dvTryDuckDuckGo, dvTryWikipedia, dvTryWiktionary];
+    // Smart cascade: Datamuse -> DuckDuckGo -> Wikipedia -> Wiktionary -> Google Forced
+    const sources = [dvTryDatamuse, dvTryDuckDuckGo, dvTryWikipedia, dvTryWiktionary, dvTryGoogleForced];
     let found = null, anySourceReachable = false;
     for (const trySource of sources) {
       try {
@@ -112,7 +127,7 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
     }
     dvHideSpinner();
 
-    if (found) { resultsEl.innerHTML = '<div class="dv-card">' + found.html + '</div>'; return; }
+    if (found) { resultsEl.innerHTML = '<div class="dv-card">' + found.html + dvFooterHtml + '</div>'; return; }
 
     emptyEl.classList.remove('dv-hidden');
     resultsEl.innerHTML = '<div class="dv-card"><p>No definition found across any source for "' + word + '".</p></div>';
@@ -142,11 +157,12 @@ dvRegisterTab({
           '<option value="duckduckgo">DuckDuckGo Answers</option>' +
           '<option value="wikipedia">Wikipedia</option>' +
           '<option value="wiktionary">Wiktionary</option>' +
+          '<option value="google">Google Live Search</option>' +
         '</select>' +
       '</div>' +
       '<button class="dv-btn dv-primary" id="dvDictSearchBtn" style="margin-bottom:16px">Search</button>' +
       '<div id="dvDictResults"></div>' +
-      '<div id="dvDictEmpty" class="dv-info-page"><p>Search any word. "Smart" checks a live dictionary, DuckDuckGo, Wikipedia, and Wiktionary natively.</p></div>';
+      '<div id="dvDictEmpty" class="dv-info-page"><p>Search any word. "Smart" cascades through Datamuse, DuckDuckGo, Wikipedia, Wiktionary, and Google natively.</p></div>';
 
     const input = panel.querySelector('#dvDictInput');
     const resultsEl = panel.querySelector('#dvDictResults');
