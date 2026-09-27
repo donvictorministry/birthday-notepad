@@ -13,7 +13,7 @@ const dvFetchWithTimeout = (url, ms = 7000) => {
   return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
 };
 
-const dvFooterHtml = '<hr style="margin:14px 0;border-color:rgba(150,150,150,0.2)"><div style="text-align:center;font-size:13px;opacity:0.8;padding-bottom:8px;">Developed by <span style="font-size:15px;filter:blur(0.8px);font-weight:bold;">Rev. Don Victor, PhD</span> | <a href="https://donvictoracademy.net/" style="font-size:14px;color:red;text-decoration:none;" target="_blank" rel="noopener">View Portfolio</a></div>';
+const dvFooterHtml = '<hr style="margin:14px 0;border-color:rgba(150,150,150,0.2)"><div style="text-align:center;font-size:15px;opacity:0.8;padding-bottom:8px;">Developed by <span style="font-size:17px;filter:blur(0.8px);font-weight:bold;">Rev. Don Victor, PhD</span> | <a href="https://donvictoracademy.net/" style="font-size:17px;color:red;text-decoration:none;" target="_blank" rel="noopener">View Portfolio</a></div>';
 
 /* ---------- Source: Original Google Search (Reliable Redirect) ---------- */
 const dvGoogleSearchHtml = word => {
@@ -150,10 +150,9 @@ dvRegisterTab({
   icon: '<svg class="dv-icon" viewBox="0 0 24 24"><path d="M6 2h12a1 1 0 0 1 1 1v18l-7-3-7 3V3a1 1 0 0 1 1-1z"/></svg>',
   showFab: false,
   render(panel) {
-    panel.style.position = 'relative';
     panel.innerHTML =
-      '<div style="position:absolute; left:0; right:0; margin-top:10px; height:10px; background:linear-gradient(to right, #4285F4 25%, #EA4335 25%, #EA4335 50%, #FBBC05 50%, #FBBC05 75%, #34A853 75%);"></div>' +
-      '<div class="dv-search-row" style="margin-top:30px;">' +
+      '<div style="width:100%;height:10px;margin-top:10px;background:linear-gradient(to right, #4285F4 25%, #EA4335 25%, #EA4335 50%, #FBBC05 50%, #FBBC05 75%, #34A853 75%);"></div>' +
+      '<div class="dv-search-row">' +
         '<svg class="dv-icon" viewBox="0 0 24 24"><path d="M10 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm7.5 10.1 4.4 4.4-1.4 1.4-4.4-4.4z"/></svg>' +
         '<input id="dvDictInput" type="text" placeholder="Look up a word" autocomplete="off">' +
       '</div>' +
