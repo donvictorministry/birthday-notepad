@@ -204,6 +204,7 @@ const dvPlannerOpenWorkspace = id => {
   dvId('dvPlannerLockLabel').textContent = (entry && entry.pin) ? 'Unlock' : 'Lock';
   dvPlannerUndoStack = [dvPlannerTextarea.value]; dvPlannerRedoStack = [];
   dvPlannerZoom = 26; dvPlannerTextarea.style.fontSize = dvPlannerZoom + 'px';
+  dvPlannerFab.classList.add('dv-hidden');
   dvPlannerWorkspace.classList.add('open');
 };
 
@@ -221,7 +222,11 @@ const dvPlannerCreate = async (titleOverride, contentOverride) => {
   dvPlannerOpenWorkspace(entry.id);
 };
 
-const dvPlannerCloseWorkspace = async () => { dvPlannerWorkspace.classList.remove('open'); await dvPlannerLoad(); };
+const dvPlannerCloseWorkspace = async () => {
+  dvPlannerWorkspace.classList.remove('open');
+  dvPlannerFab.classList.toggle('dv-hidden', dvActiveTab !== 'dvTabDiary');
+  await dvPlannerLoad();
+};
 dvId('dvPlannerBackBtn').onclick = dvPlannerCloseWorkspace;
 
 const dvPlannerSave = async () => {
