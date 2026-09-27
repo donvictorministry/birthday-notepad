@@ -13,19 +13,13 @@ const dvFetchWithTimeout = (url, ms = 7000) => {
   return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
 };
 
-const dvFooterHtml = '<hr style="margin:16px 0;border-color:rgba(150,150,150,0.2)"><div style="text-align:center;font-size:12px;opacity:0.8;padding-bottom:8px;">Built by <span style="filter:blur(0.5px);font-weight:bold;">Rev. Don Victor, PhD</span> | <a href="https://donvictoracademy.net/" style="color:red;text-decoration:none;" target="_blank" rel="noopener">View Portfolio</a></div>';
+const dvFooterHtml = '<hr style="margin:14px 0;border-color:rgba(150,150,150,0.2)"><div style="text-align:center;font-size:13px;opacity:0.8;padding-bottom:8px;">Developed by <span style="font-size:15px;filter:blur(0.8px);font-weight:bold;">Rev. Don Victor, PhD</span> | <a href="https://donvictoracademy.net/" style="font-size:14px;color:red;text-decoration:none;" target="_blank" rel="noopener">View Portfolio</a></div>';
 
-/* ---------- Source: Google Search (Brute Force Proxy) ---------- */
-const dvTryGoogleForced = async word => {
-  const url = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.google.com/search?q=define+' + word);
-  const res = await dvFetchWithTimeout(url);
-  if (!res.ok) return null;
-  const data = await res.json();
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(data.contents, 'text/html');
-  const snippetNode = doc.querySelector('.BNeawe.s3v9rd.AP7Wnd') || doc.querySelector('.BNeawe.tAd8D.AP7Wnd');
-  if (!snippetNode || !snippetNode.textContent) return null;
-  return { html: '<p class="dv-dict-word">Google Result</p><p class="dv-dict-pos">Web Fetch</p><p class="dv-dict-def">' + snippetNode.textContent.substring(0, 300) + '...</p>' };
+/* ---------- Source: Original Google Search (Reliable Redirect) ---------- */
+const dvGoogleSearchHtml = word => {
+  const googleUrl = 'https://www.google.com/search?q=' + encodeURIComponent(word);
+  return '<p style="font-size:19px;">Opening Google search results in a new tab for "' + word + '".</p>' +
+    '<a class="dv-btn dv-primary" style="text-decoration:none;margin-top:10px;display:block;text-align:center;" href="' + googleUrl + '" target="_blank" rel="noopener">Open Google Search</a>';
 };
 
 /* ---------- Source: Datamuse API (Keyless Dictionary Mode) ---------- */
@@ -39,9 +33,9 @@ const dvTryDatamuse = async word => {
   entry.defs.slice(0, 3).forEach(d => {
     const parts = d.split('\t');
     if (parts.length > 1) {
-      html += '<p class="dv-dict-pos">' + parts[0] + '</p><p class="dv-dict-def">' + parts[1] + '</p>';
+      html += '<p class="dv-dict-pos">' + parts[0] + '</p><p class="dv-dict-def" style="font-size:19px;">' + parts[1] + '</p>';
     } else {
-      html += '<p class="dv-dict-def">' + d + '</p>';
+      html += '<p class="dv-dict-def" style="font-size:19px;">' + d + '</p>';
     }
   });
   return { html };
@@ -53,7 +47,7 @@ const dvTryDuckDuckGo = async word => {
   if (!res.ok) return null;
   const data = await res.json();
   if (!data.AbstractText) return null;
-  return { html: '<p class="dv-dict-word">' + (data.Heading || word) + '</p><p class="dv-dict-pos">DuckDuckGo Answer</p><p class="dv-dict-def">' + data.AbstractText + '</p>' };
+  return { html: '<p class="dv-dict-word">' + (data.Heading || word) + '</p><p class="dv-dict-pos">DuckDuckGo Answer</p><p class="dv-dict-def" style="font-size:19px;">' + data.AbstractText + '</p>' };
 };
 
 /* ---------- Source: Wikipedia REST summary ---------- */
@@ -65,7 +59,7 @@ const dvTryWikipedia = async word => {
   const html =
     '<p class="dv-dict-word">' + (data.title || word) + '</p>' +
     '<p class="dv-dict-pos">From Wikipedia</p>' +
-    '<p class="dv-dict-def">' + data.extract + '</p>';
+    '<p class="dv-dict-def" style="font-size:19px;">' + data.extract + '</p>';
   return { html };
 };
 
@@ -82,7 +76,7 @@ const dvTryWiktionary = async word => {
   const html =
     '<p class="dv-dict-word">' + (page.title || word) + '</p>' +
     '<p class="dv-dict-pos">From Wiktionary</p>' +
-    '<p class="dv-dict-def">' + page.extract.replace(/\n+/g, '<br>') + '</p>';
+    '<p class="dv-dict-def" style="font-size:19px;">' + page.extract.replace(/\n+/g, '<br>') + '</p>';
   return { html };
 };
 
@@ -94,14 +88,20 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
 
   resultsEl.innerHTML = '';
   emptyEl.classList.add('dv-hidden');
+
+  if (source === 'google') {
+    resultsEl.innerHTML = '<div class="dv-card">' + dvGoogleSearchHtml(word) + dvFooterHtml + '</div>';
+    window.open('https://www.google.com/search?q=' + encodeURIComponent(word), '_blank');
+    return;
+  }
+
   dvShowSpinner();
 
   const singleSourceFns = { 
     datamuse: dvTryDatamuse, 
     duckduckgo: dvTryDuckDuckGo,
     wikipedia: dvTryWikipedia, 
-    wiktionary: dvTryWiktionary,
-    google: dvTryGoogleForced
+    wiktionary: dvTryWiktionary
   };
 
   try {
@@ -115,8 +115,8 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
       return;
     }
 
-    // Smart cascade: Datamuse -> DuckDuckGo -> Wikipedia -> Wiktionary -> Google Forced
-    const sources = [dvTryDatamuse, dvTryDuckDuckGo, dvTryWikipedia, dvTryWiktionary, dvTryGoogleForced];
+    // Smart cascade: Datamuse -> DuckDuckGo -> Wikipedia -> Wiktionary
+    const sources = [dvTryDatamuse, dvTryDuckDuckGo, dvTryWikipedia, dvTryWiktionary];
     let found = null, anySourceReachable = false;
     for (const trySource of sources) {
       try {
@@ -130,7 +130,12 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
     if (found) { resultsEl.innerHTML = '<div class="dv-card">' + found.html + dvFooterHtml + '</div>'; return; }
 
     emptyEl.classList.remove('dv-hidden');
-    resultsEl.innerHTML = '<div class="dv-card"><p>No definition found across any source for "' + word + '".</p></div>';
+    resultsEl.innerHTML =
+      '<div class="dv-card">' +
+        '<p style="font-size:19px;">No definition found in dictionaries or wikis for "' + word + '".</p>' +
+        '<a class="dv-btn dv-primary" style="text-decoration:none;margin-top:10px;display:block;text-align:center;" href="https://www.google.com/search?q=' + encodeURIComponent(word) + '" target="_blank" rel="noopener">Search Google instead</a>' +
+        dvFooterHtml +
+      '</div>';
     dvShow(anySourceReachable ? 'No definition found for that word.' : 'Dictionary services are unavailable right now. Check your connection.', 'error');
   } catch {
     dvHideSpinner();
@@ -145,8 +150,10 @@ dvRegisterTab({
   icon: '<svg class="dv-icon" viewBox="0 0 24 24"><path d="M6 2h12a1 1 0 0 1 1 1v18l-7-3-7 3V3a1 1 0 0 1 1-1z"/></svg>',
   showFab: false,
   render(panel) {
+    panel.style.position = 'relative';
     panel.innerHTML =
-      '<div class="dv-search-row">' +
+      '<div style="position:absolute; left:0; right:0; margin-top:10px; height:10px; background:linear-gradient(to right, #4285F4 25%, #EA4335 25%, #EA4335 50%, #FBBC05 50%, #FBBC05 75%, #34A853 75%);"></div>' +
+      '<div class="dv-search-row" style="margin-top:30px;">' +
         '<svg class="dv-icon" viewBox="0 0 24 24"><path d="M10 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm7.5 10.1 4.4 4.4-1.4 1.4-4.4-4.4z"/></svg>' +
         '<input id="dvDictInput" type="text" placeholder="Look up a word" autocomplete="off">' +
       '</div>' +
@@ -162,7 +169,7 @@ dvRegisterTab({
       '</div>' +
       '<button class="dv-btn dv-primary" id="dvDictSearchBtn" style="margin-bottom:16px">Search</button>' +
       '<div id="dvDictResults"></div>' +
-      '<div id="dvDictEmpty" class="dv-info-page"><p>Search any word. "Smart" cascades through Datamuse, DuckDuckGo, Wikipedia, Wiktionary, and Google natively.</p></div>';
+      '<div id="dvDictEmpty" class="dv-info-page"><p>Search any word. "Smart" cascades through Datamuse, DuckDuckGo, Wikipedia, and Wiktionary.</p></div>';
 
     const input = panel.querySelector('#dvDictInput');
     const resultsEl = panel.querySelector('#dvDictResults');
