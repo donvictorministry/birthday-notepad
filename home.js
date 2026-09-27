@@ -1,5 +1,5 @@
 /* ==========================================================================
-   home.js — requires core.js loaded first. Reads dvNotesCache / dvDiaryCache
+   home.js — requires core.js loaded first. Reads dvNotesCache / dvPlannerCache
    from note.js / planner.js when available (guarded so load order never
    crashes the app even if this file loads before them).
    ========================================================================== */
@@ -73,7 +73,7 @@ dvRegisterTab({
       const input = dvId('dvDictInput');
       if (input) input.focus();
     };
-    panel.querySelector('#dvQuickTodo').onclick = () => dvOpenSettings();
+    panel.querySelector('#dvQuickTodo').onclick = () => { if (typeof dvOpenTodoPage === 'function') dvOpenTodoPage(); else dvOpenSettings(); };
 
     dvRenderRecent();
   }
