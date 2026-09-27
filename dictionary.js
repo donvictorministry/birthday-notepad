@@ -14,24 +14,32 @@ const dvFetchWithTimeout = (url, ms = 7000) => {
   return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
 };
 
-/* ---------- Source: api.dictionaryapi.dev ---------- */
-const dvTryDictionaryApi = async word => {
-  const res = await dvFetchWithTimeout('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word));
+/* ---------- Source: Datamuse API (Keyless Dictionary Mode) ---------- */
+const dvTryDatamuse = async word => {
+  const res = await dvFetchWithTimeout('https://api.datamuse.com/words?sp=' + encodeURIComponent(word) + '&md=d&max=1');
   if (!res.ok) return null;
   const data = await res.json();
   const entry = data[0];
-  if (!entry) return null;
-  const phon = entry.phonetic || (entry.phonetics && entry.phonetics.find(p => p.text) || {}).text || '';
+  if (!entry || !entry.defs) return null;
   let html = '<p class="dv-dict-word">' + entry.word + '</p>';
-  if (phon) html += '<p class="dv-dict-phonetic">' + phon + '</p>';
-  (entry.meanings || []).forEach(m => {
-    html += '<p class="dv-dict-pos">' + m.partOfSpeech + '</p>';
-    (m.definitions || []).slice(0, 3).forEach(d => {
-      html += '<p class="dv-dict-def">' + d.definition + '</p>';
-      if (d.example) html += '<p class="dv-dict-example">"' + d.example + '"</p>';
-    });
+  entry.defs.slice(0, 3).forEach(d => {
+    const parts = d.split('\t');
+    if (parts.length > 1) {
+      html += '<p class="dv-dict-pos">' + parts[0] + '</p><p class="dv-dict-def">' + parts[1] + '</p>';
+    } else {
+      html += '<p class="dv-dict-def">' + d + '</p>';
+    }
   });
   return { html };
+};
+
+/* ---------- Source: DuckDuckGo Instant Answers (Keyless) ---------- */
+const dvTryDuckDuckGo = async word => {
+  const res = await dvFetchWithTimeout('https://api.duckduckgo.com/?q=' + encodeURIComponent(word) + '&format=json&no_html=1');
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data.AbstractText) return null;
+  return { html: '<p class="dv-dict-word">' + (data.Heading || word) + '</p><p class="dv-dict-pos">DuckDuckGo Answer</p><p class="dv-dict-def">' + data.AbstractText + '</p>' };
 };
 
 /* ---------- Source: Wikipedia REST summary ---------- */
@@ -64,12 +72,6 @@ const dvTryWiktionary = async word => {
   return { html };
 };
 
-const dvGoogleSearchHtml = word => {
-  const googleUrl = 'https://www.google.com/search?q=' + encodeURIComponent(word);
-  return '<p>Opening Google search results in a new tab for "' + word + '".</p>' +
-    '<a class="dv-btn dv-primary" style="text-decoration:none;margin-top:10px" href="' + googleUrl + '" target="_blank" rel="noopener">Open Google Search</a>';
-};
-
 /* ---------- Lookup: either one specific source, or the smart cascade ---------- */
 const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
   const word = input.value.trim();
@@ -78,16 +80,14 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
 
   resultsEl.innerHTML = '';
   emptyEl.classList.add('dv-hidden');
-
-  if (source === 'google') {
-    resultsEl.innerHTML = '<div class="dv-card">' + dvGoogleSearchHtml(word) + '</div>';
-    window.open('https://www.google.com/search?q=' + encodeURIComponent(word), '_blank');
-    return;
-  }
-
   dvShowSpinner();
 
-  const singleSourceFns = { dictionary: dvTryDictionaryApi, wikipedia: dvTryWikipedia, wiktionary: dvTryWiktionary };
+  const singleSourceFns = { 
+    datamuse: dvTryDatamuse, 
+    duckduckgo: dvTryDuckDuckGo,
+    wikipedia: dvTryWikipedia, 
+    wiktionary: dvTryWiktionary
+  };
 
   try {
     if (source !== 'smart') {
@@ -100,26 +100,22 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
       return;
     }
 
-    // Smart cascade
-    const sources = [dvTryDictionaryApi, dvTryWikipedia, dvTryWiktionary];
+    // Smart cascade: Datamuse -> DuckDuckGo -> Wikipedia -> Wiktionary
+    const sources = [dvTryDatamuse, dvTryDuckDuckGo, dvTryWikipedia, dvTryWiktionary];
     let found = null, anySourceReachable = false;
     for (const trySource of sources) {
       try {
         const result = await trySource(word);
         anySourceReachable = true;
         if (result) { found = result; break; }
-      } catch { /* this source failed or timed out — move to the next one */ }
+      } catch { /* move to next source on failure */ }
     }
     dvHideSpinner();
 
     if (found) { resultsEl.innerHTML = '<div class="dv-card">' + found.html + '</div>'; return; }
 
     emptyEl.classList.remove('dv-hidden');
-    resultsEl.innerHTML =
-      '<div class="dv-card">' +
-        '<p>No definition found in Dictionary, Wikipedia or Wiktionary for "' + word + '".</p>' +
-        '<a class="dv-btn dv-primary" style="text-decoration:none;margin-top:10px" href="https://www.google.com/search?q=' + encodeURIComponent(word) + '" target="_blank" rel="noopener">Search Google instead</a>' +
-      '</div>';
+    resultsEl.innerHTML = '<div class="dv-card"><p>No definition found across any source for "' + word + '".</p></div>';
     dvShow(anySourceReachable ? 'No definition found for that word.' : 'Dictionary services are unavailable right now. Check your connection.', 'error');
   } catch {
     dvHideSpinner();
@@ -142,15 +138,15 @@ dvRegisterTab({
       '<div class="dv-field" style="margin-top:0;margin-bottom:14px">' +
         '<select class="dv-select" id="dvDictSource">' +
           '<option value="smart">Smart (All Sources)</option>' +
-          '<option value="dictionary">Dictionary</option>' +
+          '<option value="datamuse">Dictionary (Datamuse)</option>' +
+          '<option value="duckduckgo">DuckDuckGo Answers</option>' +
           '<option value="wikipedia">Wikipedia</option>' +
           '<option value="wiktionary">Wiktionary</option>' +
-          '<option value="google">Google Search</option>' +
         '</select>' +
       '</div>' +
       '<button class="dv-btn dv-primary" id="dvDictSearchBtn" style="margin-bottom:16px">Search</button>' +
       '<div id="dvDictResults"></div>' +
-      '<div id="dvDictEmpty" class="dv-info-page"><p>Search any word. "Smart" checks a live dictionary, Wikipedia and Wiktionary automatically — or pick one source directly.</p></div>';
+      '<div id="dvDictEmpty" class="dv-info-page"><p>Search any word. "Smart" checks a live dictionary, DuckDuckGo, Wikipedia, and Wiktionary natively.</p></div>';
 
     const input = panel.querySelector('#dvDictInput');
     const resultsEl = panel.querySelector('#dvDictResults');
