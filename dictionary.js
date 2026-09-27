@@ -6,14 +6,57 @@
      - A specific source picked from the dropdown — queries ONLY that one.
    Requires an internet connection. Deliberate, explicit exception to the
    app's zero-dependency rule.
+
+   Loading indicator: a top-of-screen Google-style sliding line bar
+   (self-injected here, independent of core.js's circular spinner) —
+   full width edge-to-edge, 12px thick, sitting 15px below the header.
+   Shows on every search, vanishes when the search finishes.
    ========================================================================== */
+
+/* ---------- Inject the top loading bar (own CSS + markup, self-contained) ---------- */
+document.head.insertAdjacentHTML('beforeend', `
+<style>
+.dv-loadbar{
+  position:fixed; left:0; right:0;
+  top:calc(60px + env(safe-area-inset-top) + 15px);
+  height:12px; overflow:hidden; z-index:110;
+  display:none; background:transparent;
+}
+.dv-loadbar.show{ display:block; }
+.dv-loadbar-inner{
+  position:absolute; top:0; left:-40%; height:100%; width:40%;
+  background:linear-gradient(to right, #4285F4, #EA4335, #FBBC05, #34A853);
+  border-radius:6px;
+  animation: dvLoadBarSlide 1.1s ease-in-out infinite;
+}
+@keyframes dvLoadBarSlide{
+  0%   { left:-40%; }
+  100% { left:100%; }
+}
+@media (prefers-reduced-motion: reduce){
+  .dv-loadbar-inner{ animation:none; left:0; width:100%; }
+}
+</style>
+`);
+document.body.insertAdjacentHTML('beforeend', '<div class="dv-loadbar" id="dvLoadBar"><div class="dv-loadbar-inner"></div></div>');
+const dvLoadBar = document.getElementById('dvLoadBar');
+const dvShowLoadBar = () => dvLoadBar.classList.add('show');
+const dvHideLoadBar = () => dvLoadBar.classList.remove('show');
+
 const dvFetchWithTimeout = (url, ms = 7000) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
 };
 
-const dvFooterHtml = '<hr style="margin:14px 0;border-color:rgba(150,150,150,0.2)"><div style="text-align:center;font-size:15px;opacity:0.8;padding-bottom:8px;">Developed by <span style="font-size:17px;filter:blur(0.8px);font-weight:bold;">Rev. Don Victor, PhD</span> | <a href="https://donvictoracademy.net/" style="font-size:17px;color:red;text-decoration:none;" target="_blank" rel="noopener">View Portfolio</a></div>';
+const dvFooterHtml =
+  '<hr style="margin:14px 0;border-color:rgba(150,150,150,0.2)">' +
+  '<div style="display:flex;align-items:center;justify-content:center;flex-wrap:nowrap;white-space:nowrap;gap:6px;font-size:15px;opacity:0.85;padding-bottom:8px;overflow-x:auto;">' +
+    '<span>Developed by</span>' +
+    '<strong style="font-weight:800;">Rev. Don Victor, PhD</strong>' +
+    '<span>&bull;</span>' +
+    '<a href="https://donvictoracademy.net/" style="color:red;text-decoration:none;font-weight:700;" target="_blank" rel="noopener">View Portfolio</a>' +
+  '</div>';
 
 /* ---------- Source: Original Google Search (Reliable Redirect) ---------- */
 const dvGoogleSearchHtml = word => {
@@ -95,7 +138,7 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
     return;
   }
 
-  dvShowSpinner();
+  dvShowLoadBar();
 
   const singleSourceFns = { 
     datamuse: dvTryDatamuse, 
@@ -107,7 +150,7 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
   try {
     if (source !== 'smart') {
       const result = await singleSourceFns[source](word);
-      dvHideSpinner();
+      dvHideLoadBar();
       if (result) { resultsEl.innerHTML = '<div class="dv-card">' + result.html + dvFooterHtml + '</div>'; return; }
       emptyEl.classList.remove('dv-hidden');
       resultsEl.innerHTML = '<div class="dv-card"><p>No result from that source for "' + word + '".</p></div>';
@@ -125,7 +168,7 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
         if (result) { found = result; break; }
       } catch { /* move to next source on failure */ }
     }
-    dvHideSpinner();
+    dvHideLoadBar();
 
     if (found) { resultsEl.innerHTML = '<div class="dv-card">' + found.html + dvFooterHtml + '</div>'; return; }
 
@@ -138,7 +181,7 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
       '</div>';
     dvShow(anySourceReachable ? 'No definition found for that word.' : 'Dictionary services are unavailable right now. Check your connection.', 'error');
   } catch {
-    dvHideSpinner();
+    dvHideLoadBar();
     emptyEl.classList.remove('dv-hidden');
     dvShow('Dictionary services are unavailable right now. Check your connection.', 'error');
   }
@@ -151,7 +194,6 @@ dvRegisterTab({
   showFab: false,
   render(panel) {
     panel.innerHTML =
-      '<div style="width:100%;height:10px;margin-top:10px;background:linear-gradient(to right, #4285F4 25%, #EA4335 25%, #EA4335 50%, #FBBC05 50%, #FBBC05 75%, #34A853 75%);"></div>' +
       '<div class="dv-search-row">' +
         '<svg class="dv-icon" viewBox="0 0 24 24"><path d="M10 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm7.5 10.1 4.4 4.4-1.4 1.4-4.4-4.4z"/></svg>' +
         '<input id="dvDictInput" type="text" placeholder="Look up a word" autocomplete="off">' +
