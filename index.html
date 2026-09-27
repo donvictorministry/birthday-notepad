@@ -15,7 +15,7 @@
  --dv-p:#1877F2;--dv-bg:#fff;--dv-text:#111;--dv-muted:#687078;
  --dv-card:#f7f8fa;--dv-border:#ddd;--dv-danger:#d93025;
  --dv-input-bg:#fff;--dv-hover:#eef5ff;--dv-min:19px;
- --dv-font:Roboto,-apple-system,system-ui,sans-serif;
+ --dv-font:-apple-system,system-ui,sans-serif;
 }
 [data-dv-theme="dark"]{
  --dv-p:#4a9eff;--dv-bg:#0f1115;--dv-text:#e8eaed;--dv-muted:#9aa0a6;
@@ -295,11 +295,11 @@ button{cursor:pointer;border:0;background:transparent}
 <script src="share-app.js"></script>
 <script src="export.js"></script>
 
-<!-- Bottom-nav tabs — note.js and planner.js are now fully independent of each other (any order works) -->
+<!-- Bottom-nav tabs — home.js loads FIRST so "Home" is the leftmost nav button (registration order = display order). note.js and planner.js are fully independent of each other. -->
+<script src="home.js"></script>
 <script src="note.js"></script>
 <script src="planner.js"></script>
 <script src="dictionary.js"></script>
-<script src="home.js"></script>
 
 <!-- Boot: restore saved theme/accent/font, wire Escape key, register service worker -->
 <script>dvBoot();</script>
