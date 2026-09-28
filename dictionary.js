@@ -25,7 +25,7 @@ document.head.insertAdjacentHTML('beforeend', `
 .dv-loadbar.show{ display:block; }
 .dv-loadbar-inner{
   position:absolute; top:0; left:-40%; height:100%; width:40%;
-  background:linear-gradient(to right, #4285F4, #EA4335, #FBBC05, #34A853);
+  background:#1877F2;
   border-radius:6px;
   animation: dvLoadBarSlide 1.1s ease-in-out infinite;
 }
@@ -150,7 +150,6 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
   try {
     if (source !== 'smart') {
       const result = await singleSourceFns[source](word);
-      dvHideLoadBar();
       if (result) { resultsEl.innerHTML = '<div class="dv-card">' + result.html + dvFooterHtml + '</div>'; return; }
       emptyEl.classList.remove('dv-hidden');
       resultsEl.innerHTML = '<div class="dv-card"><p>No result from that source for "' + word + '".</p></div>';
@@ -168,7 +167,6 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
         if (result) { found = result; break; }
       } catch { /* move to next source on failure */ }
     }
-    dvHideLoadBar();
 
     if (found) { resultsEl.innerHTML = '<div class="dv-card">' + found.html + dvFooterHtml + '</div>'; return; }
 
@@ -181,9 +179,10 @@ const dvDictLookup = async (input, resultsEl, emptyEl, sourceSelect) => {
       '</div>';
     dvShow(anySourceReachable ? 'No definition found for that word.' : 'Dictionary services are unavailable right now. Check your connection.', 'error');
   } catch {
-    dvHideLoadBar();
     emptyEl.classList.remove('dv-hidden');
     dvShow('Dictionary services are unavailable right now. Check your connection.', 'error');
+  } finally {
+    dvHideLoadBar();
   }
 };
 
